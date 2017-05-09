@@ -1,128 +1,100 @@
 .data
+arrayLength: .word 4
 myArray: .space 16
-prompt1: .asciiz "Podaj wartosci przy potegach wielomianu 3. stopnia: \n"
+prompt1: .asciiz "Podaj wartosci przy potegach wielomianu 3. stopnia: (Po kazdej wcisnij 'enter'): \n"
 prompt2: .asciiz "Podaj wartosc funkcji: \n"
+message: .asciiz "Wartosc funkcji dla podanego argumentu to: "
 
-	
 .text 
 
-#NA RAZIE NIE LICZY DOBRZE XD ALE S¥ PÊTLE WARUNKI TABLICE ITD.
-
 main:
-	la $a1, prompt1
+	la $a0, prompt1
 	jal printString
 	
-	addi $a1, $zero, 4
-	jal loadArray  #load user's input to RAM's myArray 
 	
-	la $a1, prompt2
+loadArray:
+	li $t0, 0 #counter
+	addi $t1, $zero, 0 #arrayIndex
+	lw $t2, arrayLength #number of iterations
+	
+whileLoadingArray:
+	#Load input from user
+	li $v0, 5  
+	syscall
+	sw $v0, myArray($t1) #add input to array to position t1
+	
+	addi $t1, $t1, 4 #arrayIndex = arrayIndex + 4
+	addi $t0, $t0, 1 #counter++
+	blt $t0, $t2, whileLoadingArray   #if counter < number of iterations repeat; otherwise - go down
+	
+getFunctionArgument:
+	la $a0, prompt2
 	jal printString
 	
 	li $v0, 5
 	syscall
-	move $a1, $v0
-	addi $a0, $a1, 0
+	move $t4, $v0 #user's input
 	
-	la $a2, 4
-	jal calculateResult
-
-	li $v0, 1
-	move $a0, $v1
-	syscall
+	#Funtion looks like f(x) = ax^3 + bx^2 + cx + d, where a,b,c,d are taken from user and stored in array
+	#(and a is on 0 index, b on 4 etc) 
+	li $t0, 0 #counter
+	li $t1, 0 #arrayIndex
+	lw $t2, arrayLength #array length
+	li $t3, 0 #result
 	
+calculateFunctionForArgument:
+	add $a1, $t4, 0  #we pass base for power in a1
+	sub $a2, $t2, $t0 #a2 = arrayLength - counter
+	sub $a2, $a2, 1 #a2 = arrayLength - counter
+	
+	jal power  #v1 = argument ^ (arrayLength - counter)
+	
+	lw $a1, myArray($t1) #store user's input (polymonial constants) in a1
+	mul $a1, $a1, $v1 #monomial = input * (argument ^ (arrayLength - counter))
+	add $t3, $t3, $a1 #result += monomial
+	
+	addi $t0, $t0, 1 #counter++
+	addi $t1, $t1, 4 #arrayIndex += 4
+	
+	blt $t0, $t2, calculateFunctionForArgument  #if counter < array length repeat; otherwise - go down
+	
+publishResult:
+	la $a0, message
+	jal printString
+	
+	move $a0, $t3
+	jal printInt
+	
+	
+#a1 - base
+#a2 - exponent
+#fe calling power with a1=2 and a2=10 will result in v1 with 1024
+power:
+	li $v1, 1 #result
+calculatePower:	
+	beqz $a2, endPower #return 1 if exponent is 0
+	mul $v1, $v1, $a1  #result *= base
+	
+	add $a2, $a2, -1  #power--
+	bgtz $a2, calculatePower #while power > 0 repeat 
+	
+endPower:
+	jr $ra
+	
+exit: 
 	li $v0, 10
 	syscall
-
-
-loadArray:
-	li $t0, 1 #counter
-	addi $t1, $zero, 0 #arrayIndex
-	move $t2, $a1 #number of iterations
-	
-	sw $ra, 0($sp)
-	jal whileLoadingArray
-	lw $ra, 0($sp)
 	
 	
-	jr $ra
 	
-whileLoadingArray:
-	bgt $t0, $t2, endLoadingArray #(counter < number)
-
-	li $v0, 5  #load input from user
-	syscall
-	sw $v0, myArray($t1)
 	
-	addi $t1, $t1, 4 #arrayIndex = index + 4
-	addi $t0, $t0, 1 #counter++
-	j whileLoadingArray #}
-
-endLoadingArray:
-	jr $ra
-
 printString:
 	li $v0, 4
-	move $a0, $a1
 	syscall
 	jr $ra
 	
-	
-calculateResult:
-	li $t4, 1 #counter
-	li $t5, 0 #result
-	li $t6, 0 #array index
-	move $t7, $a1 #len of array
-	move $s1, $a0 #function argument
-	
-	addi $sp $sp, -12
-	sw $ra, 0($sp)
-	jal whileCalculating
-	lw $ra, 0($sp)
-	
+printInt:
+	li $v0, 1
+	syscall
 	jr $ra
-
-whileCalculating:
-	bgt $t4 $t7 endCalculating
-
-	move $a1, $s1 #argument
-	move $a2, $t4 #counter
-	sw $ra, 4($sp)
-	jal pow  
-	lw $ra, 4($sp)  #v1 = argument ^ counter
 	
-	lw $a1, myArray($t6) 
-	mul $v1, $v1, $a1 #v1 = (argument*^counter) * wielomianu liczba wprowadzona
-	addi $t5, $v1, 0
-	
-	addi $t6, $t6, 4 #arrayIndex += 4
-	addi $t4, $t4, 1 #counter ++
-	j whileCalculating
-	
-endCalculating:
-	move $v1, $t5
-	jr $ra
-
-
-#returns the pow
-pow:
-	li $t0, 1 #counter
-	li $t1, 1 #result
-	addi $t2, $a2, 0 #power
-	addi $t3, $a1, 0 #base
-	
-	sw $ra, 8($sp)
-	jal while
-	lw $ra, 8($sp)
-	jr $ra
-	 
-	
-	
-while:
-	bgt $t0, $t2, end #(counter < power)
-	mul $t1, $t1, $t3  #result = result * base
-	
-	add $t0, $t0, 1 #counter ++
-	j while #}
-end:
-	move $v1, $t1
-	jr $ra
