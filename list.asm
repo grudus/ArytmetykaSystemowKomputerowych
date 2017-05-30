@@ -8,35 +8,25 @@
 main:
 	li $t0, 0 #list index
 	li $t1, 0 #array index
-	la $t3, list
 	
 readList:
-	lw $t2, 0($t3) #read from list
-	move $a1, $t2 
-	bgtz $a1, addToArray  #add to array if > 0
+	lw $t2, list($t0) #read from list
+	bgtz $t2, addToArray  #add to array if > 0
 
 afterAdded:
-	
-	add $t3, $t3, 4 #listPointner += 4
 	add $t0, $t0, 4 #listIndex += 4
-	
 	blt $t0, 40, readList  #while listIndex < 40 do read
 	
 	jal readArray
+#koniec
 	li $v0, 10
 	syscall
-
+	
 addToArray:
-	sw $a1, array($t1)
-	add $t1, $t1, 4 #t1 += 4
+	jal addToArrayProcedure
 	j afterAdded
 
-
-println:
-	li $v0, 4
-	la $a0, newLine
-	syscall
-	jr $ra
+#############
 	
 readArray:
 	li $t0, 0 #new array index
@@ -57,3 +47,13 @@ doRead:
 
 	jr $ra
 	
+addToArrayProcedure:
+	sw $t2, array($t1)
+	add $t1, $t1, 4 #t1 += 4
+	jr $ra
+	
+println:
+	li $v0, 4
+	la $a0, newLine
+	syscall
+	jr $ra
